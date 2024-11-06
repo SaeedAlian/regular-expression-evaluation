@@ -8,6 +8,18 @@ typedef struct stack {
   char *data;
 } stack;
 
+typedef struct nfa_transition {
+  char symbol;
+  struct nfa_state *next;
+} nfa_transition;
+
+typedef struct nfa_state {
+  int id;
+  int transitions_index;
+  int transitions_len;
+  struct nfa_transition *transitions;
+} nfa_state;
+
 stack *new_stack(int max) {
   struct stack *s = (stack *)malloc(sizeof(stack));
   s->data = (char *)malloc(sizeof(char) * max);
@@ -120,6 +132,52 @@ char *regex_to_postfix(const char *regex, int len) {
   postfix[j] = '\0';
   free(op);
   return postfix;
+}
+
+nfa_transition new_nfa_transition(char symbol, nfa_state *next) {
+  nfa_transition t;
+  t.symbol = symbol;
+  t.next = next;
+
+  return t;
+}
+
+nfa_state *new_nfa_state(int id) {
+  nfa_state *state = (nfa_state *)malloc(sizeof(nfa_state));
+  state->id = id;
+  state->transitions_index = 0;
+  state->transitions_len = 5;
+  state->transitions =
+      (nfa_transition *)malloc(sizeof(nfa_transition) * state->transitions_len);
+
+  if (state->transitions == NULL)
+    return NULL;
+
+  return state;
+}
+
+int realloc_nfa_state_transitions(nfa_state *s) {
+  s->transitions_len *= 2;
+  s->transitions = (nfa_transition *)realloc(
+      s->transitions, sizeof(nfa_transition) * s->transitions_len);
+
+  if (s->transitions == NULL)
+    return -1;
+
+  return 0;
+}
+
+int add_nfa_transition(nfa_state *from, char symbol, nfa_state *to) {
+  nfa_transition t = new_nfa_transition(symbol, to);
+
+  if (from->transitions_index >= from->transitions_len - 1) {
+    if (realloc_nfa_state_transitions(from) == -1) {
+      return -1;
+    }
+  }
+
+  from->transitions[from->transitions_index++] = t;
+  return 0;
 }
 
 int main() {
