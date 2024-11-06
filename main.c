@@ -14,6 +14,9 @@ stack *new_stack(int max) {
   s->top = -1;
   s->max = max;
 
+  if (s->data == NULL)
+    return NULL;
+
   return s;
 }
 
@@ -60,7 +63,16 @@ int operator_precedence(char op) {
 
 char *regex_to_postfix(const char *regex, int len) {
   stack *op = new_stack(len);
+
+  if (op == NULL) {
+    return NULL;
+  }
+
   char *postfix = (char *)malloc(sizeof(char) * (len + 1));
+
+  if (postfix == NULL) {
+    return NULL;
+  }
 
   int j = 0;
   for (int i = 0; i < len; i++) {
@@ -70,7 +82,9 @@ char *regex_to_postfix(const char *regex, int len) {
         (c >= '0' && c <= '9')) {
       postfix[j++] = c;
     } else if (c == '(') {
-      stack_push(op, c);
+      if (stack_push(op, c) == -1) {
+        return NULL;
+      }
     } else if (c == ')') {
       while (!stack_is_empty(op) && stack_top(op) != '(') {
         char p;
@@ -89,7 +103,9 @@ char *regex_to_postfix(const char *regex, int len) {
         postfix[j++] = p;
       }
 
-      stack_push(op, c);
+      if (stack_push(op, c) == -1) {
+        return NULL;
+      }
     } else {
       continue;
     }
