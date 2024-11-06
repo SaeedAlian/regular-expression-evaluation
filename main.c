@@ -2,58 +2,114 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum tokens {
-  CHAR = 1,
-  OPEN_PARENTHESIS = 2,
-  CLOSE_PARENTHESIS = 3,
-  PLUS = 4,
-  STAR = 5,
-  SLASH = 6,
-};
+typedef struct stack {
+  int top;
+  int max;
+  char *data;
+} stack;
 
-int *tokenizer(const char *re, int re_len) {
-  int *tokens_list = (int *)malloc(sizeof(int) * re_len);
+stack *new_stack(int max) {
+  struct stack *s = (stack *)malloc(sizeof(stack));
+  s->data = (char *)malloc(sizeof(char) * max);
+  s->top = -1;
+  s->max = max;
 
-  for (int i = 0; i < re_len; i++) {
-    char c = re[i];
-
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
-      tokens_list[i] = CHAR;
-    } else if (c == '(') {
-      tokens_list[i] = OPEN_PARENTHESIS;
-    } else if (c == ')') {
-      tokens_list[i] = CLOSE_PARENTHESIS;
-    } else if (c == '+') {
-      tokens_list[i] = PLUS;
-    } else if (c == '*') {
-      tokens_list[i] = STAR;
-    } else if (c == '/') {
-      tokens_list[i] = SLASH;
-    } else {
-      return NULL;
-    }
-  }
-
-  if (tokens_list[0] != SLASH || tokens_list[re_len - 1] != SLASH)
-    return NULL;
-
-  return tokens_list;
+  return s;
 }
 
-int regex_match(const char *str, const char *re) {
-  int re_len = strlen(re);
-  int *tokens_list = tokenizer(re, re_len);
+int stack_is_full(struct stack *s) { return s->top == s->max - 1; }
+int stack_is_empty(struct stack *s) { return s->top == -1; }
 
-  for (int i = 0; i < re_len; i++) {
-    printf("-- %d --", tokens_list[i]);
-  }
+char stack_top(struct stack *s) { return s->data[s->top]; }
 
-  free(tokens_list);
+int stack_push(struct stack *s, char state) {
+  int new_top = ++s->top;
+
+  if (new_top > s->max - 1)
+    return -1;
+
+  s->data[new_top] = state;
+
   return 0;
 }
 
+int stack_pop(struct stack *s, char *state) {
+  if (s->top < 0)
+    return -1;
+
+  if (state != NULL) {
+    (*state) = s->data[s->top];
+  }
+
+  s->top--;
+  return 0;
+}
+
+int operator_precedence(char op) {
+  switch (op) {
+  case '|':
+    return 1;
+
+  case '*':
+    return 2;
+
+  default:
+    return 0;
+  }
+}
+
+char *regex_to_postfix(const char *regex, int len) {
+  stack *op = new_stack(len);
+  char *postfix = (char *)malloc(sizeof(char) * (len + 1));
+
+  int j = 0;
+  for (int i = 0; i < len; i++) {
+    char c = regex[i];
+
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9')) {
+      postfix[j++] = c;
+    } else if (c == '(') {
+      stack_push(op, c);
+    } else if (c == ')') {
+      while (!stack_is_empty(op) && stack_top(op) != '(') {
+        char p;
+        stack_pop(op, &p);
+        postfix[j++] = p;
+      }
+
+      if (stack_top(op) == '(') {
+        stack_pop(op, NULL);
+      }
+    } else if (c == '*' || c == '|') {
+      char p = stack_top(op);
+      while (!stack_is_empty(op) &&
+             (operator_precedence(c) <= operator_precedence(p))) {
+        stack_pop(op, &p);
+        postfix[j++] = p;
+      }
+
+      stack_push(op, c);
+    } else {
+      continue;
+    }
+  }
+
+  while (!stack_is_empty(op)) {
+    char p;
+    stack_pop(op, &p);
+    postfix[j++] = p;
+  }
+
+  postfix[j] = '\0';
+  free(op);
+  return postfix;
+}
+
 int main() {
-  int res = regex_match("abbacb", "/a(b+a)*cb/");
-  printf("%d\n", res);
+  char *p = regex_to_postfix("a(b|a)*cb", 9);
+
+  printf("%s\n", p);
+  free(p);
   return 0;
 }
