@@ -65,12 +65,56 @@ int operator_precedence(char op) {
   case '|':
     return 1;
 
-  case '*':
+  case '.':
     return 2;
+
+  case '*':
+    return 3;
 
   default:
     return 0;
   }
+}
+
+char *standardize_regex(const char *regex, int len, int *new_len) {
+  char *standard = (char *)malloc(sizeof(char) * (len * 2) + 1);
+
+  int i = 0;
+  int j = 0;
+
+  while (i < len) {
+    char curr = regex[i];
+    char next = regex[i + 1];
+
+    standard[j++] = curr;
+
+    if ((curr >= 'a' && curr <= 'z') || (curr >= 'A' && curr <= 'Z') ||
+        (curr >= '0' && curr <= '9')) {
+      if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') ||
+          (next >= '0' && next <= '9')) {
+        standard[j++] = '.';
+      }
+
+      if (next == '(') {
+        standard[j++] = '.';
+      }
+    }
+
+    if (curr == '*' || curr == ')') {
+      if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') ||
+          (next >= '0' && next <= '9')) {
+        standard[j++] = '.';
+      }
+    }
+
+    i++;
+  }
+
+  standard[j++] = regex[len];
+  standard[j] = '\0';
+  (*new_len) = j;
+
+  return standard;
 }
 
 char *regex_to_postfix(const char *regex, int len) {
@@ -107,7 +151,7 @@ char *regex_to_postfix(const char *regex, int len) {
       if (stack_top(op) == '(') {
         stack_pop(op, NULL);
       }
-    } else if (c == '*' || c == '|') {
+    } else if (c == '*' || c == '|' || c == '.') {
       char p = stack_top(op);
       while (!stack_is_empty(op) &&
              (operator_precedence(c) <= operator_precedence(p))) {
