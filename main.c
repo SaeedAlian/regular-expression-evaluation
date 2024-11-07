@@ -2,23 +2,30 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct nfa_state {
+  int id;
+  char symbol;
+  struct nfa_state *next;
+  struct nfa_state *epsilon;
+} nfa_state;
+
+typedef struct nfa {
+  int number_of_states;
+  nfa_state *init;
+  nfa_state *final;
+} nfa;
+
 typedef struct stack {
   int top;
   int max;
   char *data;
 } stack;
 
-typedef struct nfa_transition {
-  char symbol;
-  struct nfa_state *next;
-} nfa_transition;
-
-typedef struct nfa_state {
-  int id;
-  int transitions_index;
-  int transitions_len;
-  struct nfa_transition *transitions;
-} nfa_state;
+typedef struct nfa_stack {
+  int top;
+  int max;
+  nfa *data;
+} nfa_stack;
 
 stack *new_stack(int max) {
   struct stack *s = (stack *)malloc(sizeof(stack));
@@ -37,10 +44,31 @@ void free_stack(stack *s) {
   free(s);
 }
 
+nfa_stack *new_nfa_stack(int max) {
+  struct nfa_stack *s = (nfa_stack *)malloc(sizeof(nfa_stack));
+  s->data = (nfa *)malloc(sizeof(nfa) * max);
+  s->top = -1;
+  s->max = max;
+
+  if (s->data == NULL)
+    return NULL;
+
+  return s;
+}
+
+void free_nfa_stack(nfa_stack *s) {
+  free(s->data);
+  free(s);
+}
+
 int stack_is_full(struct stack *s) { return s->top == s->max - 1; }
 int stack_is_empty(struct stack *s) { return s->top == -1; }
 
+int nfa_stack_is_full(struct nfa_stack *s) { return s->top == s->max - 1; }
+int nfa_stack_is_empty(struct nfa_stack *s) { return s->top == -1; }
+
 char stack_top(struct stack *s) { return s->data[s->top]; }
+nfa nfa_stack_top(struct nfa_stack *s) { return s->data[s->top]; }
 
 int stack_push(struct stack *s, char state) {
   int new_top = ++s->top;
@@ -54,6 +82,29 @@ int stack_push(struct stack *s, char state) {
 }
 
 int stack_pop(struct stack *s, char *state) {
+  if (s->top < 0)
+    return -1;
+
+  if (state != NULL) {
+    (*state) = s->data[s->top];
+  }
+
+  s->top--;
+  return 0;
+}
+
+int nfa_stack_push(struct nfa_stack *s, nfa state) {
+  int new_top = ++s->top;
+
+  if (new_top > s->max - 1)
+    return -1;
+
+  s->data[new_top] = state;
+
+  return 0;
+}
+
+int nfa_stack_pop(struct nfa_stack *s, nfa *state) {
   if (s->top < 0)
     return -1;
 
@@ -183,56 +234,215 @@ char *regex_to_postfix(const char *regex, int len) {
   return postfix;
 }
 
-nfa_transition new_nfa_transition(char symbol, nfa_state *next) {
-  nfa_transition t;
-  t.symbol = symbol;
-  t.next = next;
-
-  return t;
-}
-
 nfa_state *new_nfa_state(int id) {
   nfa_state *state = (nfa_state *)malloc(sizeof(nfa_state));
   state->id = id;
-  state->transitions_index = 0;
-  state->transitions_len = 5;
-  state->transitions =
-      (nfa_transition *)malloc(sizeof(nfa_transition) * state->transitions_len);
-
-  if (state->transitions == NULL)
-    return NULL;
+  state->symbol = '\0';
+  state->next = NULL;
+  state->epsilon = NULL;
 
   return state;
 }
 
-int realloc_nfa_state_transitions(nfa_state *s) {
-  s->transitions_len *= 2;
-  s->transitions = (nfa_transition *)realloc(
-      s->transitions, sizeof(nfa_transition) * s->transitions_len);
-
-  if (s->transitions == NULL)
-    return -1;
-
-  return 0;
+void add_nfa_transition(nfa_state *from, nfa_state *to, char symbol) {
+  from->next = to;
+  from->symbol = symbol;
 }
 
-int add_nfa_transition(nfa_state *from, char symbol, nfa_state *to) {
-  nfa_transition t = new_nfa_transition(symbol, to);
+void add_epsilon_nfa_transition(nfa_state *from, nfa_state *to) {
+  from->epsilon = to;
+}
 
-  if (from->transitions_index >= from->transitions_len - 1) {
-    if (realloc_nfa_state_transitions(from) == -1) {
-      return -1;
+nfa *new_nfa_from_regex(const char *regex, int len) {
+  int count = 0;
+  nfa_stack *s = new_nfa_stack(len);
+
+  // if regex is empty, then we have a epsilon regex, which is just
+  // a epsilon transition from init state to final state.
+  if (len == 0) {
+    nfa n;
+    nfa_state *init = new_nfa_state(count++);
+    nfa_state *final = new_nfa_state(count++);
+
+    add_epsilon_nfa_transition(init, final);
+
+    n.init = init;
+    n.final = final;
+    n.number_of_states = 2;
+
+    nfa_stack_push(s, n);
+  }
+
+  int i = 0;
+  while (i < len) {
+    char c = regex[i];
+    i++;
+
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9')) {
+      nfa n;
+      nfa_state *init = new_nfa_state(count++);
+      nfa_state *final = new_nfa_state(count++);
+
+      add_nfa_transition(init, final, c);
+
+      n.init = init;
+      n.final = final;
+      n.number_of_states = 2;
+
+      nfa_stack_push(s, n);
+    } else if (c == '*') {
+      nfa last;
+
+      if (nfa_stack_is_empty(s)) {
+        return NULL;
+      }
+
+      nfa_stack_pop(s, &last);
+
+      nfa n;
+      nfa_state *new_state = new_nfa_state(count++);
+
+      add_epsilon_nfa_transition(new_state, last.init);
+      add_epsilon_nfa_transition(last.final, new_state);
+
+      n.init = new_state;
+      n.final = last.final;
+      n.number_of_states = last.number_of_states + 1;
+      nfa_stack_push(s, n);
+    } else if (c == '.') {
+      nfa l1;
+      nfa l2;
+
+      if (nfa_stack_is_empty(s)) {
+        return NULL;
+      }
+
+      nfa_stack_pop(s, &l1);
+
+      if (nfa_stack_is_empty(s)) {
+        return NULL;
+      }
+
+      nfa_stack_pop(s, &l2);
+
+      nfa n;
+      add_nfa_transition(l2.final, l1.init, '\0');
+
+      n.init = l2.init;
+      n.final = l1.final;
+      n.number_of_states = l1.number_of_states + l2.number_of_states;
+      nfa_stack_push(s, n);
+    } else if (c == '|') {
+      nfa l1;
+      nfa l2;
+
+      if (nfa_stack_is_empty(s)) {
+        return NULL;
+      }
+
+      nfa_stack_pop(s, &l1);
+
+      if (nfa_stack_is_empty(s)) {
+        return NULL;
+      }
+
+      nfa_stack_pop(s, &l2);
+
+      nfa n;
+      nfa_state *init = new_nfa_state(count++);
+      nfa_state *final = new_nfa_state(count++);
+
+      add_epsilon_nfa_transition(init, l1.init);
+      add_nfa_transition(init, l2.init, '\0');
+      add_epsilon_nfa_transition(l2.final, final);
+      add_epsilon_nfa_transition(l1.final, final);
+
+      n.init = init;
+      n.final = final;
+      n.number_of_states = l1.number_of_states + l2.number_of_states + 2;
+      nfa_stack_push(s, n);
+    } else {
+      return NULL;
     }
   }
 
-  from->transitions[from->transitions_index++] = t;
-  return 0;
+  if (nfa_stack_is_empty(s)) {
+    return NULL;
+  }
+
+  nfa *n = (nfa *)malloc(sizeof(nfa));
+  nfa_stack_pop(s, n);
+
+  if (!nfa_stack_is_empty(s)) {
+    return NULL;
+  }
+
+  free_nfa_stack(s);
+  return n;
+}
+
+void print_nfa_state(nfa_state *state, int *visited) {
+  if (visited[state->id] != 0) {
+    return;
+  }
+
+  printf("q%i     ", state->id);
+
+  if (state->symbol != '\0' && state->next != NULL) {
+    printf(" | %c -> q%i | ", state->symbol, state->next->id);
+  }
+
+  if (state->symbol == '\0' && state->next != NULL) {
+    printf(" | eps -> q%i | ", state->next->id);
+  }
+
+  if (state->epsilon != NULL) {
+    printf(" | eps -> q%i | ", state->epsilon->id);
+  }
+
+  visited[state->id] = 1;
+
+  if (state->next != NULL && state->epsilon != NULL &&
+      state->epsilon->id != state->next->id) {
+    printf("\n");
+    print_nfa_state(state->next, visited);
+    print_nfa_state(state->epsilon, visited);
+  } else if (state->next != NULL) {
+    printf("\n");
+    print_nfa_state(state->next, visited);
+  } else if (state->epsilon != NULL) {
+    printf("\n");
+    print_nfa_state(state->epsilon, visited);
+  } else {
+    printf(" | NULL | ");
+    printf("\n");
+    return;
+  }
+}
+
+void print_nfa(nfa *nfa) {
+  printf("NFA:\n");
+  printf("Initial State -> %i\n", nfa->init->id);
+  printf("Final State -> %i\n", nfa->final->id);
+  printf("-----------------------------------------\n");
+  int *visited = (int *)malloc(sizeof(int) * nfa->number_of_states);
+  print_nfa_state(nfa->init, visited);
+  free(visited);
 }
 
 int main() {
-  char *p = regex_to_postfix("a(b|a)*cb", 9);
+  const char *d = "a(b|a)*cb*";
+  int i;
+  int l = strlen(d);
+  char *s = standardize_regex(d, l, &i);
+  char *p = regex_to_postfix(s, i);
 
-  printf("%s\n", p);
+  nfa *n = new_nfa_from_regex(p, strlen(p));
+  print_nfa(n);
+
+  free(n);
   free(p);
+  free(s);
   return 0;
 }
