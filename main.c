@@ -32,6 +32,11 @@ stack *new_stack(int max) {
   return s;
 }
 
+void free_stack(stack *s) {
+  free(s->data);
+  free(s);
+}
+
 int stack_is_full(struct stack *s) { return s->top == s->max - 1; }
 int stack_is_empty(struct stack *s) { return s->top == -1; }
 
@@ -174,7 +179,7 @@ char *regex_to_postfix(const char *regex, int len) {
   }
 
   postfix[j] = '\0';
-  free(op);
+  free_stack(op);
   return postfix;
 }
 
