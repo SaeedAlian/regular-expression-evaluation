@@ -171,7 +171,9 @@ char *regex_to_postfix(const char *regex, int len) {
         return NULL;
       }
     } else {
-      continue;
+      free_stack(op);
+      free(postfix);
+      return NULL;
     }
   }
 
