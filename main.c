@@ -350,20 +350,32 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa_stack_pop(s, &last);
 
       nfa n;
-      nfa_state *new_state = new_nfa_state(count++);
 
-      transition_err = add_epsilon_nfa_transition(new_state, last.init);
-      transition_err = add_epsilon_nfa_transition(new_state, last.final);
-      transition_err = add_epsilon_nfa_transition(last.final, new_state);
+      if ((last.final->epsilon != NULL && last.final->next != NULL) ||
+          (last.init->epsilon != NULL && last.init->next != NULL)) {
+        nfa_state *new_state = new_nfa_state(count++);
+
+        transition_err = add_epsilon_nfa_transition(new_state, last.init);
+        transition_err = add_epsilon_nfa_transition(new_state, last.final);
+        transition_err = add_epsilon_nfa_transition(last.final, new_state);
+
+        n.init = new_state;
+        n.final = last.final;
+        n.number_of_states = last.number_of_states + 1;
+      } else {
+        transition_err = add_epsilon_nfa_transition(last.final, last.init);
+        transition_err = add_epsilon_nfa_transition(last.init, last.final);
+
+        n.init = last.init;
+        n.final = last.final;
+        n.number_of_states = last.number_of_states;
+      }
 
       if (transition_err == -1) {
         free_nfa_stack(s);
         return NULL;
       }
 
-      n.init = new_state;
-      n.final = last.final;
-      n.number_of_states = last.number_of_states + 1;
       nfa_stack_push(s, n);
     } else if (c == '.') {
       nfa l1;
