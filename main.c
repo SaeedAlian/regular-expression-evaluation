@@ -447,6 +447,38 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
   return n;
 }
 
+void free_nfa_state(nfa_state *s, int *visited) {
+  if (visited[s->id] != 0) {
+    return;
+  }
+
+  visited[s->id] = 1;
+
+  if (s->next != NULL && s->epsilon != NULL && s->epsilon->id != s->next->id) {
+    free(s->next);
+    free(s->epsilon);
+  } else if (s->next != NULL) {
+    free(s->next);
+  } else if (s->epsilon != NULL) {
+    free(s->epsilon);
+  } else {
+    return free(s);
+  }
+
+  free(s);
+}
+
+void free_nfa(nfa *n) {
+  int *visited = (int *)malloc(sizeof(int) * n->number_of_states);
+
+  for (int i = 0; i < n->number_of_states; i++)
+    visited[i] = 0;
+
+  free_nfa_state(n->init, visited);
+  free(n);
+  free(visited);
+}
+
 void print_nfa_state(nfa_state *state, int *visited) {
   if (visited[state->id] != 0) {
     return;
@@ -510,7 +542,7 @@ int main() {
   nfa *n = new_nfa_from_regex(p, strlen(p));
   print_nfa(n);
 
-  free(n);
+  free_nfa(n);
   free(p);
   free(s);
   return 0;
