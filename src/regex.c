@@ -157,9 +157,10 @@ char *regex_to_postfix(const char *regex, int len) {
         stack_pop(op, NULL);
       }
     } else if (c == '*' || c == '|' || c == '.') {
-      char p = stack_top(op);
+      char p;
+
       while (!stack_is_empty(op) &&
-             (operator_precedence(c) <= operator_precedence(p))) {
+             (operator_precedence(c) <= operator_precedence(stack_top(op)))) {
         stack_pop(op, &p);
         postfix[j++] = p;
       }
