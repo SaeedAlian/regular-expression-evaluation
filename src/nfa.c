@@ -1,52 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-typedef struct nfa_state {
-  int id;
-  char symbol;
-  struct nfa_state *next;
-  struct nfa_state *epsilon;
-} nfa_state;
-
-typedef struct nfa {
-  int number_of_states;
-  nfa_state *init;
-  nfa_state *final;
-} nfa;
-
-typedef struct stack {
-  int top;
-  int max;
-  char *data;
-} stack;
-
-typedef struct nfa_stack {
-  int top;
-  int max;
-  nfa *data;
-} nfa_stack;
-
-stack *new_stack(int max) {
-  struct stack *s = (stack *)malloc(sizeof(stack));
-  s->data = (char *)malloc(sizeof(char) * max);
-  s->top = -1;
-  s->max = max;
-
-  if (s->data == NULL) {
-    if (s != NULL)
-      free(s);
-
-    return NULL;
-  }
-
-  return s;
-}
-
-void free_stack(stack *s) {
-  free(s->data);
-  free(s);
-}
+#include "nfa.h"
 
 nfa_stack *new_nfa_stack(int max) {
   struct nfa_stack *s = (nfa_stack *)malloc(sizeof(nfa_stack));
@@ -69,37 +21,10 @@ void free_nfa_stack(nfa_stack *s) {
   free(s);
 }
 
-int stack_is_full(struct stack *s) { return s->top == s->max - 1; }
-int stack_is_empty(struct stack *s) { return s->top == -1; }
-
 int nfa_stack_is_full(struct nfa_stack *s) { return s->top == s->max - 1; }
 int nfa_stack_is_empty(struct nfa_stack *s) { return s->top == -1; }
 
-char stack_top(struct stack *s) { return s->data[s->top]; }
 nfa nfa_stack_top(struct nfa_stack *s) { return s->data[s->top]; }
-
-int stack_push(struct stack *s, char state) {
-  int new_top = ++s->top;
-
-  if (new_top > s->max - 1)
-    return -1;
-
-  s->data[new_top] = state;
-
-  return 0;
-}
-
-int stack_pop(struct stack *s, char *state) {
-  if (s->top < 0)
-    return -1;
-
-  if (state != NULL) {
-    (*state) = s->data[s->top];
-  }
-
-  s->top--;
-  return 0;
-}
 
 int nfa_stack_push(struct nfa_stack *s, nfa state) {
   int new_top = ++s->top;
@@ -122,136 +47,6 @@ int nfa_stack_pop(struct nfa_stack *s, nfa *state) {
 
   s->top--;
   return 0;
-}
-
-int operator_precedence(char op) {
-  switch (op) {
-  case '|':
-    return 1;
-
-  case '.':
-    return 2;
-
-  case '*':
-    return 3;
-
-  default:
-    return 0;
-  }
-}
-
-char *standardize_regex(const char *regex, int len, int *new_len) {
-  char *standard = (char *)malloc(sizeof(char) * (len * 2) + 1);
-
-  int i = 0;
-  int j = 0;
-
-  while (i < len) {
-    char curr = regex[i];
-    char next = regex[i + 1];
-
-    standard[j++] = curr;
-
-    if ((curr >= 'a' && curr <= 'z') || (curr >= 'A' && curr <= 'Z') ||
-        (curr >= '0' && curr <= '9')) {
-      if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') ||
-          (next >= '0' && next <= '9')) {
-        standard[j++] = '.';
-      }
-
-      if (next == '(') {
-        standard[j++] = '.';
-      }
-    }
-
-    if (curr == '*') {
-      if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') ||
-          (next >= '0' && next <= '9') || next == '(') {
-        standard[j++] = '.';
-      }
-    }
-
-    if (curr == ')') {
-      if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') ||
-          (next >= '0' && next <= '9')) {
-        standard[j++] = '.';
-      }
-    }
-
-    i++;
-  }
-
-  standard[j++] = regex[len];
-  standard[j] = '\0';
-  (*new_len) = j;
-
-  return standard;
-}
-
-char *regex_to_postfix(const char *regex, int len) {
-  stack *op = new_stack(len);
-
-  if (op == NULL) {
-    return NULL;
-  }
-
-  char *postfix = (char *)malloc(sizeof(char) * (len + 1));
-
-  if (postfix == NULL) {
-    free_stack(op);
-    return NULL;
-  }
-
-  int j = 0;
-  for (int i = 0; i < len; i++) {
-    char c = regex[i];
-
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-        (c >= '0' && c <= '9')) {
-      postfix[j++] = c;
-    } else if (c == '(') {
-      if (stack_push(op, c) == -1) {
-        free_stack(op);
-        free(postfix);
-        return NULL;
-      }
-    } else if (c == ')') {
-      while (!stack_is_empty(op) && stack_top(op) != '(') {
-        char p;
-        stack_pop(op, &p);
-        postfix[j++] = p;
-      }
-
-      if (stack_top(op) == '(') {
-        stack_pop(op, NULL);
-      }
-    } else if (c == '*' || c == '|' || c == '.') {
-      char p = stack_top(op);
-      while (!stack_is_empty(op) &&
-             (operator_precedence(c) <= operator_precedence(p))) {
-        stack_pop(op, &p);
-        postfix[j++] = p;
-      }
-
-      if (stack_push(op, c) == -1) {
-        free_stack(op);
-        free(postfix);
-        return NULL;
-      }
-    } else {
-      continue;
-    }
-  }
-
-  while (!stack_is_empty(op)) {
-    char p;
-    stack_pop(op, &p);
-    postfix[j++] = p;
-  }
-
-  postfix[j] = '\0';
-  free_stack(op);
-  return postfix;
 }
 
 nfa_state *new_nfa_state(int id) {
@@ -549,20 +344,4 @@ void print_nfa(nfa *nfa) {
 
   print_nfa_state(nfa->init, visited);
   free(visited);
-}
-
-int main() {
-  const char *d = "a(b|a)*cb*";
-  int i;
-  int l = strlen(d);
-  char *s = standardize_regex(d, l, &i);
-  char *p = regex_to_postfix(s, i);
-
-  nfa *n = new_nfa_from_regex(p, strlen(p));
-  print_nfa(n);
-
-  free_nfa(n);
-  free(p);
-  free(s);
-  return 0;
 }
