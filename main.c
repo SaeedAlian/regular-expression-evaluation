@@ -244,17 +244,27 @@ nfa_state *new_nfa_state(int id) {
   return state;
 }
 
-void add_nfa_transition(nfa_state *from, nfa_state *to, char symbol) {
+int add_nfa_transition(nfa_state *from, nfa_state *to, char symbol) {
+  if (from->next != NULL)
+    return -1;
+
   from->next = to;
   from->symbol = symbol;
+  return 0;
 }
 
-void add_epsilon_nfa_transition(nfa_state *from, nfa_state *to) {
+int add_epsilon_nfa_transition(nfa_state *from, nfa_state *to) {
+  if (from->epsilon != NULL) {
+    return add_nfa_transition(from, to, '\0');
+  }
+
   from->epsilon = to;
+  return 0;
 }
 
 nfa *new_nfa_from_regex(const char *regex, int len) {
   int count = 0;
+  int transition_err = 0;
   nfa_stack *s = new_nfa_stack(len);
 
   // if regex is empty, then we have a epsilon regex, which is just
@@ -264,7 +274,9 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
     nfa_state *init = new_nfa_state(count++);
     nfa_state *final = new_nfa_state(count++);
 
-    add_epsilon_nfa_transition(init, final);
+    transition_err = add_epsilon_nfa_transition(init, final);
+    if (transition_err == -1)
+      return NULL;
 
     n.init = init;
     n.final = final;
@@ -284,7 +296,10 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa_state *init = new_nfa_state(count++);
       nfa_state *final = new_nfa_state(count++);
 
-      add_nfa_transition(init, final, c);
+      transition_err = add_nfa_transition(init, final, c);
+
+      if (transition_err == -1)
+        return NULL;
 
       n.init = init;
       n.final = final;
@@ -303,8 +318,11 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa n;
       nfa_state *new_state = new_nfa_state(count++);
 
-      add_epsilon_nfa_transition(new_state, last.init);
-      add_epsilon_nfa_transition(last.final, new_state);
+      transition_err = add_epsilon_nfa_transition(new_state, last.init);
+      transition_err = add_epsilon_nfa_transition(last.final, new_state);
+
+      if (transition_err == -1)
+        return NULL;
 
       n.init = new_state;
       n.final = last.final;
@@ -327,7 +345,10 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa_stack_pop(s, &l2);
 
       nfa n;
-      add_nfa_transition(l2.final, l1.init, '\0');
+      transition_err = add_epsilon_nfa_transition(l2.final, l1.init);
+
+      if (transition_err == -1)
+        return NULL;
 
       n.init = l2.init;
       n.final = l1.final;
@@ -353,10 +374,13 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa_state *init = new_nfa_state(count++);
       nfa_state *final = new_nfa_state(count++);
 
-      add_epsilon_nfa_transition(init, l1.init);
-      add_nfa_transition(init, l2.init, '\0');
-      add_epsilon_nfa_transition(l2.final, final);
-      add_epsilon_nfa_transition(l1.final, final);
+      transition_err = add_epsilon_nfa_transition(init, l1.init);
+      transition_err = add_epsilon_nfa_transition(init, l2.init);
+      transition_err = add_epsilon_nfa_transition(l2.final, final);
+      transition_err = add_epsilon_nfa_transition(l1.final, final);
+
+      if (transition_err == -1)
+        return NULL;
 
       n.init = init;
       n.final = final;
