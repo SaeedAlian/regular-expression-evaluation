@@ -33,8 +33,12 @@ stack *new_stack(int max) {
   s->top = -1;
   s->max = max;
 
-  if (s->data == NULL)
+  if (s->data == NULL) {
+    if (s != NULL)
+      free(s);
+
     return NULL;
+  }
 
   return s;
 }
@@ -50,8 +54,12 @@ nfa_stack *new_nfa_stack(int max) {
   s->top = -1;
   s->max = max;
 
-  if (s->data == NULL)
+  if (s->data == NULL) {
+    if (s != NULL)
+      free(s);
+
     return NULL;
+  }
 
   return s;
 }
@@ -183,6 +191,7 @@ char *regex_to_postfix(const char *regex, int len) {
   char *postfix = (char *)malloc(sizeof(char) * (len + 1));
 
   if (postfix == NULL) {
+    free_stack(op);
     return NULL;
   }
 
@@ -195,6 +204,8 @@ char *regex_to_postfix(const char *regex, int len) {
       postfix[j++] = c;
     } else if (c == '(') {
       if (stack_push(op, c) == -1) {
+        free_stack(op);
+        free(postfix);
         return NULL;
       }
     } else if (c == ')') {
@@ -216,6 +227,8 @@ char *regex_to_postfix(const char *regex, int len) {
       }
 
       if (stack_push(op, c) == -1) {
+        free_stack(op);
+        free(postfix);
         return NULL;
       }
     } else {
@@ -236,6 +249,10 @@ char *regex_to_postfix(const char *regex, int len) {
 
 nfa_state *new_nfa_state(int id) {
   nfa_state *state = (nfa_state *)malloc(sizeof(nfa_state));
+
+  if (state == NULL)
+    return NULL;
+
   state->id = id;
   state->symbol = '\0';
   state->next = NULL;
@@ -245,6 +262,8 @@ nfa_state *new_nfa_state(int id) {
 }
 
 int add_nfa_transition(nfa_state *from, nfa_state *to, char symbol) {
+  if (from == NULL || to == NULL)
+    return -1;
   if (from->next != NULL)
     return -1;
 
@@ -254,6 +273,8 @@ int add_nfa_transition(nfa_state *from, nfa_state *to, char symbol) {
 }
 
 int add_epsilon_nfa_transition(nfa_state *from, nfa_state *to) {
+  if (from == NULL || to == NULL)
+    return -1;
   if (from->epsilon != NULL) {
     return add_nfa_transition(from, to, '\0');
   }
@@ -266,6 +287,9 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
   int count = 0;
   int transition_err = 0;
   nfa_stack *s = new_nfa_stack(len);
+
+  if (s == NULL)
+    return NULL;
 
   // if regex is empty, then we have a epsilon regex, which is just
   // a epsilon transition from init state to final state.
@@ -298,8 +322,10 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
 
       transition_err = add_nfa_transition(init, final, c);
 
-      if (transition_err == -1)
+      if (transition_err == -1) {
+        free_nfa_stack(s);
         return NULL;
+      }
 
       n.init = init;
       n.final = final;
@@ -310,6 +336,7 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa last;
 
       if (nfa_stack_is_empty(s)) {
+        free_nfa_stack(s);
         return NULL;
       }
 
@@ -322,8 +349,10 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       transition_err = add_epsilon_nfa_transition(new_state, last.final);
       transition_err = add_epsilon_nfa_transition(last.final, new_state);
 
-      if (transition_err == -1)
+      if (transition_err == -1) {
+        free_nfa_stack(s);
         return NULL;
+      }
 
       n.init = new_state;
       n.final = last.final;
@@ -334,12 +363,14 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa l2;
 
       if (nfa_stack_is_empty(s)) {
+        free_nfa_stack(s);
         return NULL;
       }
 
       nfa_stack_pop(s, &l1);
 
       if (nfa_stack_is_empty(s)) {
+        free_nfa_stack(s);
         return NULL;
       }
 
@@ -348,8 +379,10 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa n;
       transition_err = add_epsilon_nfa_transition(l2.final, l1.init);
 
-      if (transition_err == -1)
+      if (transition_err == -1) {
+        free_nfa_stack(s);
         return NULL;
+      }
 
       n.init = l2.init;
       n.final = l1.final;
@@ -360,12 +393,14 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa l2;
 
       if (nfa_stack_is_empty(s)) {
+        free_nfa_stack(s);
         return NULL;
       }
 
       nfa_stack_pop(s, &l1);
 
       if (nfa_stack_is_empty(s)) {
+        free_nfa_stack(s);
         return NULL;
       }
 
@@ -380,8 +415,10 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       transition_err = add_epsilon_nfa_transition(l2.final, final);
       transition_err = add_epsilon_nfa_transition(l1.final, final);
 
-      if (transition_err == -1)
+      if (transition_err == -1) {
+        free_nfa_stack(s);
         return NULL;
+      }
 
       n.init = init;
       n.final = final;
@@ -393,6 +430,7 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
   }
 
   if (nfa_stack_is_empty(s)) {
+    free_nfa_stack(s);
     return NULL;
   }
 
@@ -400,6 +438,8 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
   nfa_stack_pop(s, n);
 
   if (!nfa_stack_is_empty(s)) {
+    free(n);
+    free_nfa_stack(s);
     return NULL;
   }
 
