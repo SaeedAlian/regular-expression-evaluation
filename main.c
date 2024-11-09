@@ -164,7 +164,14 @@ char *standardize_regex(const char *regex, int len, int *new_len) {
       }
     }
 
-    if (curr == '*' || curr == ')') {
+    if (curr == '*') {
+      if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') ||
+          (next >= '0' && next <= '9') || next == '(') {
+        standard[j++] = '.';
+      }
+    }
+
+    if (curr == ')') {
       if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') ||
           (next >= '0' && next <= '9')) {
         standard[j++] = '.';
