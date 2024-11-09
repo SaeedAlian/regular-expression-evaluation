@@ -319,6 +319,7 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       nfa_state *new_state = new_nfa_state(count++);
 
       transition_err = add_epsilon_nfa_transition(new_state, last.init);
+      transition_err = add_epsilon_nfa_transition(new_state, last.final);
       transition_err = add_epsilon_nfa_transition(last.final, new_state);
 
       if (transition_err == -1)
