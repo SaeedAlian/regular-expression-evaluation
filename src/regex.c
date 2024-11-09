@@ -189,6 +189,14 @@ char *regex_to_postfix(const char *regex, int len) {
 }
 
 int evaluate_string(const char *str, const char *regex) {
+  if (str == NULL) {
+    printf("The provided string is empty!");
+  }
+
+  if (regex == NULL) {
+    printf("The provided regex is empty!");
+  }
+
   if (SHOW_LOG)
     printf("Evaluating '%s' with regular expression '%s'\n", str, regex);
 
@@ -196,16 +204,29 @@ int evaluate_string(const char *str, const char *regex) {
   int regex_len = strlen(regex);
   char *standard = standardize_regex(regex, regex_len, &standard_regex_len);
 
+  if (standard == NULL) {
+    printf("There was an issue in the standardization process...");
+  }
+
   if (SHOW_LOG)
     printf("Standardized regular expression: %s\n", standard);
 
   char *postfix = regex_to_postfix(standard, standard_regex_len);
+
+  if (postfix == NULL) {
+    printf("There was an issue in postfix creation process...");
+  }
+
   int postfix_len = strlen(postfix);
 
   if (SHOW_LOG)
     printf("Postfix of regular expression: %s\n\n", postfix);
 
   nfa *n = new_nfa_from_regex(postfix, postfix_len);
+
+  if (n == NULL) {
+    printf("There was an issue in nfa creation process...");
+  }
 
   if (SHOW_LOG)
     print_nfa(n);
