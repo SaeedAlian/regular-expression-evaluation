@@ -451,6 +451,10 @@ void print_nfa(nfa *nfa) {
   printf("Final State -> %i\n", nfa->final->id);
   printf("-----------------------------------------\n");
   int *visited = (int *)malloc(sizeof(int) * nfa->number_of_states);
+
+  for (int i = 0; i < nfa->number_of_states; i++)
+    visited[i] = 0;
+
   print_nfa_state(nfa->init, visited);
   free(visited);
 }
