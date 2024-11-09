@@ -73,6 +73,13 @@ char *standardize_regex(const char *regex, int len, int *new_len) {
 
   while (i < len) {
     char curr = regex[i];
+
+    if (i == len - 1) {
+      standard[j++] = curr;
+      i++;
+      continue;
+    }
+
     char next = regex[i + 1];
 
     standard[j++] = curr;
@@ -106,7 +113,6 @@ char *standardize_regex(const char *regex, int len, int *new_len) {
     i++;
   }
 
-  standard[j++] = regex[len];
   standard[j] = '\0';
   (*new_len) = j;
 
