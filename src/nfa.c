@@ -1,7 +1,7 @@
 #include "nfa.h"
 
 nfa_stack *new_nfa_stack(int max) {
-  struct nfa_stack *s = (nfa_stack *)malloc(sizeof(nfa_stack));
+  nfa_stack *s = (nfa_stack *)malloc(sizeof(nfa_stack));
   s->data = (nfa *)malloc(sizeof(nfa) * max);
   s->top = -1;
   s->max = max;
@@ -21,12 +21,12 @@ void free_nfa_stack(nfa_stack *s) {
   free(s);
 }
 
-int nfa_stack_is_full(struct nfa_stack *s) { return s->top == s->max - 1; }
-int nfa_stack_is_empty(struct nfa_stack *s) { return s->top == -1; }
+int nfa_stack_is_full(nfa_stack *s) { return s->top == s->max - 1; }
+int nfa_stack_is_empty(nfa_stack *s) { return s->top == -1; }
 
-nfa nfa_stack_top(struct nfa_stack *s) { return s->data[s->top]; }
+nfa nfa_stack_top(nfa_stack *s) { return s->data[s->top]; }
 
-int nfa_stack_push(struct nfa_stack *s, nfa state) {
+int nfa_stack_push(nfa_stack *s, nfa state) {
   int new_top = ++s->top;
 
   if (new_top > s->max - 1)
@@ -37,7 +37,7 @@ int nfa_stack_push(struct nfa_stack *s, nfa state) {
   return 0;
 }
 
-int nfa_stack_pop(struct nfa_stack *s, nfa *state) {
+int nfa_stack_pop(nfa_stack *s, nfa *state) {
   if (s->top < 0)
     return -1;
 

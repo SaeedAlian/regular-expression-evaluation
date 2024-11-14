@@ -1,7 +1,7 @@
 #include "regex.h"
 
 stack *new_stack(int max) {
-  struct stack *s = (stack *)malloc(sizeof(stack));
+  stack *s = (stack *)malloc(sizeof(stack));
   s->data = (char *)malloc(sizeof(char) * max);
   s->top = -1;
   s->max = max;
@@ -21,12 +21,12 @@ void free_stack(stack *s) {
   free(s);
 }
 
-int stack_is_full(struct stack *s) { return s->top == s->max - 1; }
-int stack_is_empty(struct stack *s) { return s->top == -1; }
+int stack_is_full(stack *s) { return s->top == s->max - 1; }
+int stack_is_empty(stack *s) { return s->top == -1; }
 
-char stack_top(struct stack *s) { return s->data[s->top]; }
+char stack_top(stack *s) { return s->data[s->top]; }
 
-int stack_push(struct stack *s, char state) {
+int stack_push(stack *s, char state) {
   int new_top = ++s->top;
 
   if (new_top > s->max - 1)
@@ -37,7 +37,7 @@ int stack_push(struct stack *s, char state) {
   return 0;
 }
 
-int stack_pop(struct stack *s, char *state) {
+int stack_pop(stack *s, char *state) {
   if (s->top < 0)
     return -1;
 
