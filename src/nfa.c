@@ -2,6 +2,10 @@
 
 nfa_stack *new_nfa_stack(int max) {
   nfa_stack *s = (nfa_stack *)malloc(sizeof(nfa_stack));
+
+  if (s == NULL)
+    return NULL;
+
   s->data = (nfa *)malloc(sizeof(nfa) * max);
   s->top = -1;
   s->max = max;
@@ -101,8 +105,10 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
     nfa_state *final = new_nfa_state(count++);
 
     transition_err = add_epsilon_nfa_transition(init, final);
-    if (transition_err == -1)
+    if (transition_err == -1) {
+      free_nfa_stack(s);
       return NULL;
+    }
 
     n.init = init;
     n.final = final;
@@ -239,6 +245,7 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       n.number_of_states = l1.number_of_states + l2.number_of_states + 2;
       nfa_stack_push(s, n);
     } else {
+      free_nfa_stack(s);
       return NULL;
     }
   }
