@@ -48,13 +48,14 @@ int evaluate_string_in_nfa(nfa *n, const char *str, int str_len) {
       }
     }
 
+    free(closures);
+
     if (closure_count == 0) {
       closure_count = nfa_state_queue_length(q);
       i++;
 
       if (closure_count == 0 && !transitions_found) {
         free_nfa_state_queue(q);
-        free(closures);
         return 0;
       }
     }
@@ -62,7 +63,6 @@ int evaluate_string_in_nfa(nfa *n, const char *str, int str_len) {
 
   if (i < str_len) {
     free_nfa_state_queue(q);
-    free(closures);
     return 0;
   }
 
@@ -74,22 +74,23 @@ int evaluate_string_in_nfa(nfa *n, const char *str, int str_len) {
 
       if (closure->id == n->final->id) {
         free_nfa_state_queue(q);
+        free(closures);
         return 1;
       }
     }
+
+    free(closures);
 
     if (nfa_state_queue_is_empty(q))
       curr = NULL;
 
     if (nfa_state_queue_dequeue(q, &curr) == -1) {
       free_nfa_state_queue(q);
-      free(closures);
       return -1;
     }
   }
 
   free_nfa_state_queue(q);
-  free(closures);
   return 0;
 }
 
@@ -106,10 +107,22 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
   if (len == 0) {
     nfa n;
     nfa_state *init = new_nfa_state(count++);
+    if (init == NULL) {
+      free_nfa_stack(s);
+      return NULL;
+    }
+
     nfa_state *final = new_nfa_state(count++);
+    if (final == NULL) {
+      free(init);
+      free_nfa_stack(s);
+      return NULL;
+    }
 
     transition_err = add_epsilon_nfa_transition(init, final);
     if (transition_err == -1) {
+      free(init);
+      free(final);
       free_nfa_stack(s);
       return NULL;
     }
@@ -130,11 +143,23 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
         (c >= '0' && c <= '9')) {
       nfa n;
       nfa_state *init = new_nfa_state(count++);
+      if (init == NULL) {
+        free_nfa_stack(s);
+        return NULL;
+      }
+
       nfa_state *final = new_nfa_state(count++);
+      if (final == NULL) {
+        free(init);
+        free_nfa_stack(s);
+        return NULL;
+      }
 
       transition_err = add_nfa_transition(init, final, c);
 
       if (transition_err == -1) {
+        free(init);
+        free(final);
         free_nfa_stack(s);
         return NULL;
       }
@@ -159,10 +184,20 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       if ((last.final->epsilon != NULL && last.final->next != NULL) ||
           (last.init->epsilon != NULL && last.init->next != NULL)) {
         nfa_state *new_state = new_nfa_state(count++);
+        if (new_state == NULL) {
+          free_nfa_stack(s);
+          return NULL;
+        }
 
         transition_err = add_epsilon_nfa_transition(new_state, last.init);
         transition_err = add_epsilon_nfa_transition(new_state, last.final);
         transition_err = add_epsilon_nfa_transition(last.final, new_state);
+
+        if (transition_err == -1) {
+          free_nfa_stack(s);
+          free(new_state);
+          return NULL;
+        }
 
         n.init = new_state;
         n.final = last.final;
@@ -171,14 +206,14 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
         transition_err = add_epsilon_nfa_transition(last.final, last.init);
         transition_err = add_epsilon_nfa_transition(last.init, last.final);
 
+        if (transition_err == -1) {
+          free_nfa_stack(s);
+          return NULL;
+        }
+
         n.init = last.init;
         n.final = last.final;
         n.number_of_states = last.number_of_states;
-      }
-
-      if (transition_err == -1) {
-        free_nfa_stack(s);
-        return NULL;
       }
 
       nfa_stack_push(s, n);
@@ -232,7 +267,17 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
 
       nfa n;
       nfa_state *init = new_nfa_state(count++);
+      if (init == NULL) {
+        free_nfa_stack(s);
+        return NULL;
+      }
+
       nfa_state *final = new_nfa_state(count++);
+      if (final == NULL) {
+        free(init);
+        free_nfa_stack(s);
+        return NULL;
+      }
 
       transition_err = add_epsilon_nfa_transition(init, l1.init);
       transition_err = add_epsilon_nfa_transition(init, l2.init);
@@ -240,6 +285,8 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
       transition_err = add_epsilon_nfa_transition(l1.final, final);
 
       if (transition_err == -1) {
+        free(init);
+        free(final);
         free_nfa_stack(s);
         return NULL;
       }
@@ -263,7 +310,7 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
   nfa_stack_pop(s, n);
 
   if (!nfa_stack_is_empty(s)) {
-    free(n);
+    free_nfa(n);
     free_nfa_stack(s);
     return NULL;
   }
@@ -307,10 +354,9 @@ nfa_state **find_epsilon_closures(nfa *n, nfa_state *s, int *closures_len) {
   int curr_epsilon_transitions_len;
 
   int err = 0;
-  nfa_state **epsilons = NULL;
-
   while (curr != NULL) {
-    epsilons = get_epsilon_transitions(curr, &curr_epsilon_transitions_len);
+    nfa_state **epsilons = epsilons =
+        get_epsilon_transitions(curr, &curr_epsilon_transitions_len);
 
     if (epsilons == NULL) {
       free_nfa_state_stack(state_stack);
@@ -345,7 +391,7 @@ nfa_state **find_epsilon_closures(nfa *n, nfa_state *s, int *closures_len) {
 
       if (prev == NULL || e->id != prev->id) {
         err = nfa_state_stack_push(state_stack, curr);
-        err = nfa_state_stack_push(state_stack, epsilons[i]);
+        err = nfa_state_stack_push(state_stack, e);
         if (err == -1) {
           free_nfa_state_stack(state_stack);
           free(closures);
@@ -354,6 +400,8 @@ nfa_state **find_epsilon_closures(nfa *n, nfa_state *s, int *closures_len) {
         }
       }
     }
+
+    free(epsilons);
 
     if (!nfa_state_stack_is_empty(state_stack)) {
       err = nfa_state_stack_pop(state_stack, &curr);
@@ -371,7 +419,6 @@ nfa_state **find_epsilon_closures(nfa *n, nfa_state *s, int *closures_len) {
 
   *closures_len = len;
   free_nfa_state_stack(state_stack);
-  free(epsilons);
 
   return closures;
 }
@@ -398,10 +445,9 @@ nfa_state **find_epsilon_closures_without_final_states(nfa *n, nfa_state *s,
   int curr_epsilon_transitions_len;
 
   int err = 0;
-  nfa_state **epsilons = NULL;
-
   while (curr != NULL) {
-    epsilons = get_epsilon_transitions(curr, &curr_epsilon_transitions_len);
+    nfa_state **epsilons =
+        get_epsilon_transitions(curr, &curr_epsilon_transitions_len);
 
     if (epsilons == NULL) {
       free_nfa_state_stack(state_stack);
@@ -445,13 +491,14 @@ nfa_state **find_epsilon_closures_without_final_states(nfa *n, nfa_state *s,
       }
     }
 
+    free(epsilons);
+
     if (!nfa_state_stack_is_empty(state_stack)) {
       err = nfa_state_stack_pop(state_stack, &curr);
       err = nfa_state_stack_pop(state_stack, &prev);
       if (err == -1) {
         free_nfa_state_stack(state_stack);
         free(closures);
-        free(epsilons);
         return NULL;
       }
     } else {
@@ -461,7 +508,6 @@ nfa_state **find_epsilon_closures_without_final_states(nfa *n, nfa_state *s,
 
   *closures_len = len;
   free_nfa_state_stack(state_stack);
-  free(epsilons);
 
   return closures;
 }

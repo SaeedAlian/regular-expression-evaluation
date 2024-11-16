@@ -28,6 +28,7 @@ int evaluate_string(const char *str, const char *regex) {
   char *postfix = regex_to_postfix(standard, standard_regex_len);
 
   if (postfix == NULL) {
+    free(standard);
     printf("There was an issue in postfix creation process...");
   }
 
@@ -39,6 +40,8 @@ int evaluate_string(const char *str, const char *regex) {
   nfa *n = new_nfa_from_regex(postfix, postfix_len);
 
   if (n == NULL) {
+    free(postfix);
+    free(standard);
     printf("There was an issue in nfa creation process...");
   }
 
