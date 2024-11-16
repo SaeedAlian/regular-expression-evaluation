@@ -1,68 +1,68 @@
 #include "regex.h"
 
-stack *new_stack(int max) {
-  stack *s = (stack *)malloc(sizeof(stack));
-  s->data = (char *)malloc(sizeof(char) * max);
-  s->top = -1;
-  s->max = max;
-
-  if (s->data == NULL) {
-    if (s != NULL)
-      free(s);
-
-    return NULL;
+int evaluate_string(const char *str, const char *regex) {
+  if (str == NULL) {
+    printf("The provided string is empty!");
   }
 
-  return s;
-}
+  if (regex == NULL) {
+    printf("The provided regex is empty!");
+  }
 
-void free_stack(stack *s) {
-  free(s->data);
-  free(s);
-}
+  if (SHOW_LOG)
+    printf("Evaluating '%s' with regular expression '%s'\n", str, regex);
 
-int stack_is_full(stack *s) { return s->top == s->max - 1; }
-int stack_is_empty(stack *s) { return s->top == -1; }
+  int standard_regex_len;
+  int regex_len = strlen(regex);
+  int str_len = strlen(str);
 
-char stack_top(stack *s) { return s->data[s->top]; }
+  char *standard = standardize_regex(regex, regex_len, &standard_regex_len);
 
-int stack_push(stack *s, char state) {
-  int new_top = ++s->top;
+  if (standard == NULL) {
+    printf("There was an issue in the standardization process...");
+  }
 
-  if (new_top > s->max - 1)
-    return -1;
+  if (SHOW_LOG)
+    printf("Standardized regular expression: %s\n", standard);
 
-  s->data[new_top] = state;
+  char *postfix = regex_to_postfix(standard, standard_regex_len);
 
+  if (postfix == NULL) {
+    printf("There was an issue in postfix creation process...");
+  }
+
+  int postfix_len = strlen(postfix);
+
+  if (SHOW_LOG)
+    printf("Postfix of regular expression: %s\n\n", postfix);
+
+  nfa *n = new_nfa_from_regex(postfix, postfix_len);
+
+  if (n == NULL) {
+    printf("There was an issue in nfa creation process...");
+  }
+
+  if (SHOW_LOG) {
+    print_nfa(n);
+    printf("\n");
+  }
+
+  int evaluated = evaluate_string_in_nfa(n, str, str_len);
+
+  printf("String '%s' is ", str);
+
+  if (evaluated == 1) {
+    printf("accepted");
+  } else {
+    printf("not accepted");
+  }
+
+  printf(" with the given regular expression\n");
+
+  free_nfa(n);
+  free(postfix);
+  free(standard);
   return 0;
-}
-
-int stack_pop(stack *s, char *state) {
-  if (s->top < 0)
-    return -1;
-
-  if (state != NULL) {
-    (*state) = s->data[s->top];
-  }
-
-  s->top--;
-  return 0;
-}
-
-int operator_precedence(char op) {
-  switch (op) {
-  case '|':
-    return 1;
-
-  case '.':
-    return 2;
-
-  case '*':
-    return 3;
-
-  default:
-    return 0;
-  }
 }
 
 char *standardize_regex(const char *regex, int len, int *new_len) {
@@ -188,67 +188,67 @@ char *regex_to_postfix(const char *regex, int len) {
   return postfix;
 }
 
-int evaluate_string(const char *str, const char *regex) {
-  if (str == NULL) {
-    printf("The provided string is empty!");
+int operator_precedence(char op) {
+  switch (op) {
+  case '|':
+    return 1;
+
+  case '.':
+    return 2;
+
+  case '*':
+    return 3;
+
+  default:
+    return 0;
+  }
+}
+
+stack *new_stack(int max) {
+  stack *s = (stack *)malloc(sizeof(stack));
+  s->data = (char *)malloc(sizeof(char) * max);
+  s->top = -1;
+  s->max = max;
+
+  if (s->data == NULL) {
+    if (s != NULL)
+      free(s);
+
+    return NULL;
   }
 
-  if (regex == NULL) {
-    printf("The provided regex is empty!");
+  return s;
+}
+
+void free_stack(stack *s) {
+  free(s->data);
+  free(s);
+}
+
+int stack_is_full(stack *s) { return s->top == s->max - 1; }
+int stack_is_empty(stack *s) { return s->top == -1; }
+
+char stack_top(stack *s) { return s->data[s->top]; }
+
+int stack_push(stack *s, char state) {
+  int new_top = ++s->top;
+
+  if (new_top > s->max - 1)
+    return -1;
+
+  s->data[new_top] = state;
+
+  return 0;
+}
+
+int stack_pop(stack *s, char *state) {
+  if (s->top < 0)
+    return -1;
+
+  if (state != NULL) {
+    (*state) = s->data[s->top];
   }
 
-  if (SHOW_LOG)
-    printf("Evaluating '%s' with regular expression '%s'\n", str, regex);
-
-  int standard_regex_len;
-  int regex_len = strlen(regex);
-  int str_len = strlen(str);
-
-  char *standard = standardize_regex(regex, regex_len, &standard_regex_len);
-
-  if (standard == NULL) {
-    printf("There was an issue in the standardization process...");
-  }
-
-  if (SHOW_LOG)
-    printf("Standardized regular expression: %s\n", standard);
-
-  char *postfix = regex_to_postfix(standard, standard_regex_len);
-
-  if (postfix == NULL) {
-    printf("There was an issue in postfix creation process...");
-  }
-
-  int postfix_len = strlen(postfix);
-
-  if (SHOW_LOG)
-    printf("Postfix of regular expression: %s\n\n", postfix);
-
-  nfa *n = new_nfa_from_regex(postfix, postfix_len);
-
-  if (n == NULL) {
-    printf("There was an issue in nfa creation process...");
-  }
-
-  if (SHOW_LOG) {
-    print_nfa(n);
-    printf("\n");
-  }
-
-  int evaluated = evaluate_string_in_nfa(n, str, str_len);
-
-  printf("String '%s' is ", str);
-
-  if (evaluated == 1) {
-    printf("accepted");
-  } else {
-    printf("not accepted");
-  }
-
-  printf(" with the given regular expression\n");
-
-  free_nfa(n);
-  free(postfix);
-  free(standard);
+  s->top--;
   return 0;
 }
