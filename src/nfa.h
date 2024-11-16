@@ -68,6 +68,7 @@ nfa_state **find_epsilon_closures(nfa *n, nfa_state *s, int *closures_len);
 nfa_state **find_epsilon_closures_without_final_states(nfa *n, nfa_state *s,
                                                        int *closures_len);
 nfa *new_nfa_from_regex(const char *regex, int len);
+int evaluate_string_in_nfa(nfa *n, const char *str, int str_len);
 void free_nfa_state(nfa_state *s, int *visited);
 void free_nfa(nfa *n);
 void print_nfa_state(nfa_state *state, int *visited);

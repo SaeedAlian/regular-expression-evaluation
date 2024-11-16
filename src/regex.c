@@ -202,6 +202,8 @@ int evaluate_string(const char *str, const char *regex) {
 
   int standard_regex_len;
   int regex_len = strlen(regex);
+  int str_len = strlen(str);
+
   char *standard = standardize_regex(regex, regex_len, &standard_regex_len);
 
   if (standard == NULL) {
@@ -228,8 +230,22 @@ int evaluate_string(const char *str, const char *regex) {
     printf("There was an issue in nfa creation process...");
   }
 
-  if (SHOW_LOG)
+  if (SHOW_LOG) {
     print_nfa(n);
+    printf("\n");
+  }
+
+  int evaluated = evaluate_string_in_nfa(n, str, str_len);
+
+  printf("String '%s' is ", str);
+
+  if (evaluated == 1) {
+    printf("accepted");
+  } else {
+    printf("not accepted");
+  }
+
+  printf(" with the given regular expression\n");
 
   free_nfa(n);
   free(postfix);

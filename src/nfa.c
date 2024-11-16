@@ -615,6 +615,99 @@ nfa_state **find_epsilon_closures_without_final_states(nfa *n, nfa_state *s,
   return closures;
 }
 
+int evaluate_string_in_nfa(nfa *n, const char *str, int str_len) {
+  nfa_state_queue *q = new_nfa_state_queue(n->number_of_states * 2);
+
+  if (q == NULL)
+    return -1;
+
+  nfa_state *curr = NULL;
+
+  if (nfa_state_queue_enqueue(q, n->init) == -1) {
+    free_nfa_state_queue(q);
+    return -1;
+  }
+
+  int closures_len;
+  nfa_state **closures = NULL;
+
+  int i = 0;
+  int closure_count = nfa_state_queue_length(q);
+
+  while (i < str_len) {
+    char c = str[i];
+
+    if (nfa_state_queue_is_empty(q))
+      break;
+
+    if (nfa_state_queue_dequeue(q, &curr) == -1) {
+      free_nfa_state_queue(q);
+      free(closures);
+      return -1;
+    }
+
+    if (closure_count > 0)
+      closure_count--;
+
+    closures =
+        find_epsilon_closures_without_final_states(n, curr, &closures_len);
+
+    int transitions_found = 0;
+
+    for (int j = 0; j < closures_len; j++) {
+      nfa_state *closure = closures[j];
+
+      if (closure->next != NULL && closure->symbol == c) {
+        nfa_state_queue_enqueue(q, closure->next);
+        transitions_found = 1;
+      }
+    }
+
+    if (closure_count == 0) {
+      closure_count = nfa_state_queue_length(q);
+      i++;
+
+      if (closure_count == 0 && !transitions_found) {
+        free_nfa_state_queue(q);
+        free(closures);
+        return 0;
+      }
+    }
+  }
+
+  if (i < str_len) {
+    free_nfa_state_queue(q);
+    free(closures);
+    return 0;
+  }
+
+  while (curr != NULL || !nfa_state_queue_is_empty(q)) {
+    closures = find_epsilon_closures(n, curr, &closures_len);
+
+    for (int i = 0; i < closures_len; i++) {
+      nfa_state *closure = closures[i];
+
+      if (closure->id == n->final->id) {
+        free_nfa_state_queue(q);
+        return 1;
+      }
+    }
+
+    if (nfa_state_queue_is_empty(q))
+      curr = NULL;
+
+    if (nfa_state_queue_dequeue(q, &curr) == -1) {
+      free_nfa_state_queue(q);
+      free(closures);
+      return -1;
+    }
+  }
+
+  free_nfa_state_queue(q);
+  free(closures);
+  return 0;
+}
+
 void free_nfa_state(nfa_state *s, int *visited) {
   if (visited[s->id] != 0) {
     return;
