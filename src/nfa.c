@@ -579,19 +579,17 @@ void free_nfa_state(nfa_state *s) {
   if (s == NULL || s->id == -1)
     return;
 
-  nfa_state *next = s->next;
-  nfa_state *epsilon = s->epsilon;
+  s->id = -1;
+
+  if (s->epsilon != NULL && s->next != NULL && s->epsilon->id != s->next->id) {
+    free_nfa_state(s->epsilon);
+  } else if (s->epsilon != NULL && s->epsilon->id != -1) {
+    free_nfa_state(s->epsilon);
+  } else if (s->next != NULL && s->next->id != -1) {
+    free_nfa_state(s->next);
+  }
 
   free(s);
-  s->id = -1;
-  s = NULL;
-
-  if (epsilon != NULL && next != NULL && next->id == epsilon->id) {
-    free_nfa_state(next);
-  } else {
-    free_nfa_state(epsilon);
-    free_nfa_state(next);
-  }
 }
 
 void print_nfa(nfa *nfa) {
