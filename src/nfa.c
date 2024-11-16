@@ -571,14 +571,8 @@ nfa_state **get_epsilon_transitions(nfa_state *s, int *transitions_len) {
 }
 
 void free_nfa(nfa *n) {
-  int *visited = (int *)malloc(sizeof(int) * n->number_of_states);
-
-  for (int i = 0; i < n->number_of_states; i++)
-    visited[i] = 0;
-
   free_nfa_state(n->init);
   free(n);
-  free(visited);
 }
 
 void free_nfa_state(nfa_state *s) {
