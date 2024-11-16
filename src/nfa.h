@@ -46,6 +46,12 @@ int nfa_state_stack_pop(nfa_state_stack *s, nfa_state **state);
 nfa_state *new_nfa_state(int id);
 int add_nfa_transition(nfa_state *from, nfa_state *to, char symbol);
 int add_epsilon_nfa_transition(nfa_state *from, nfa_state *to);
+int append_to_closures(nfa_state *closure_state, nfa_state ***closures,
+                       int *len, int *max);
+nfa_state **get_epsilon_transitions(nfa_state *s, int *transitions_len);
+nfa_state **find_epsilon_closures(nfa *n, nfa_state *s, int *closures_len);
+nfa_state **find_epsilon_closures_without_final_states(nfa *n, nfa_state *s,
+                                                       int *closures_len);
 nfa *new_nfa_from_regex(const char *regex, int len);
 void free_nfa_state(nfa_state *s, int *visited);
 void free_nfa(nfa *n);

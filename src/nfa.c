@@ -321,6 +321,222 @@ nfa *new_nfa_from_regex(const char *regex, int len) {
   return n;
 }
 
+int append_to_closures(nfa_state *closure_state, nfa_state ***closures,
+                       int *len, int *max) {
+  if ((*max) - 1 <= (*len)) {
+    *max *= 2;
+    nfa_state **temp =
+        (nfa_state **)realloc(*closures, sizeof(nfa_state *) * (*max));
+
+    if (temp == NULL)
+      return -1;
+
+    *closures = temp;
+  }
+
+  (*closures)[(*len)++] = closure_state;
+  return 0;
+}
+
+nfa_state **get_epsilon_transitions(nfa_state *s, int *transitions_len) {
+  int i = 0;
+  nfa_state **transitions = (nfa_state **)malloc(sizeof(nfa_state *) * 2);
+
+  if (transitions == NULL)
+    return NULL;
+
+  if (s->epsilon != NULL) {
+    transitions[i++] = s->epsilon;
+  }
+
+  if (s->symbol == '\0' && s->next != NULL) {
+    transitions[i++] = s->next;
+  }
+
+  *transitions_len = i;
+  return transitions;
+}
+
+nfa_state **find_epsilon_closures(nfa *n, nfa_state *s, int *closures_len) {
+  nfa_state_stack *state_stack = new_nfa_state_stack(n->number_of_states * 2);
+
+  if (state_stack == NULL)
+    return NULL;
+
+  int len = 0;
+  int max_closures = 5;
+  nfa_state **closures =
+      (nfa_state **)malloc(sizeof(nfa_state *) * max_closures);
+
+  if (closures == NULL) {
+    free_nfa_state_stack(state_stack);
+    return NULL;
+  }
+
+  nfa_state *prev = NULL;
+  nfa_state *curr = s;
+  int curr_epsilon_transitions_len;
+
+  int err = 0;
+  nfa_state **epsilons = NULL;
+
+  while (curr != NULL) {
+    epsilons = get_epsilon_transitions(curr, &curr_epsilon_transitions_len);
+
+    if (epsilons == NULL) {
+      free_nfa_state_stack(state_stack);
+      free(closures);
+      free(epsilons);
+      return NULL;
+    }
+
+    if (curr->id == n->final->id ||
+        (curr->symbol != '\0' && curr->next != NULL)) {
+
+      int is_state_already_exists_in_closures = 0;
+
+      for (int i = 0; i < len; i++) {
+        if (closures[i]->id == curr->id) {
+          is_state_already_exists_in_closures = 1;
+        }
+      }
+
+      if (!is_state_already_exists_in_closures) {
+        if (append_to_closures(curr, &closures, &len, &max_closures) == -1) {
+          free_nfa_state_stack(state_stack);
+          free(epsilons);
+          free(closures);
+          return NULL;
+        }
+      }
+    }
+
+    for (int i = 0; i < curr_epsilon_transitions_len; i++) {
+      nfa_state *e = epsilons[i];
+
+      if (prev == NULL || e->id != prev->id) {
+        err = nfa_state_stack_push(state_stack, curr);
+        err = nfa_state_stack_push(state_stack, epsilons[i]);
+        if (err == -1) {
+          free_nfa_state_stack(state_stack);
+          free(closures);
+          free(epsilons);
+          return NULL;
+        }
+      }
+    }
+
+    if (!nfa_state_stack_is_empty(state_stack)) {
+      err = nfa_state_stack_pop(state_stack, &curr);
+      err = nfa_state_stack_pop(state_stack, &prev);
+      if (err == -1) {
+        free_nfa_state_stack(state_stack);
+        free(closures);
+        free(epsilons);
+        return NULL;
+      }
+    } else {
+      break;
+    }
+  }
+
+  *closures_len = len;
+  free_nfa_state_stack(state_stack);
+  free(epsilons);
+
+  return closures;
+}
+
+nfa_state **find_epsilon_closures_without_final_states(nfa *n, nfa_state *s,
+                                                       int *closures_len) {
+  nfa_state_stack *state_stack = new_nfa_state_stack(n->number_of_states * 2);
+
+  if (state_stack == NULL)
+    return NULL;
+
+  int len = 0;
+  int max_closures = 5;
+  nfa_state **closures =
+      (nfa_state **)malloc(sizeof(nfa_state *) * max_closures);
+
+  if (closures == NULL) {
+    free_nfa_state_stack(state_stack);
+    return NULL;
+  }
+
+  nfa_state *prev = NULL;
+  nfa_state *curr = s;
+  int curr_epsilon_transitions_len;
+
+  int err = 0;
+  nfa_state **epsilons = NULL;
+
+  while (curr != NULL) {
+    epsilons = get_epsilon_transitions(curr, &curr_epsilon_transitions_len);
+
+    if (epsilons == NULL) {
+      free_nfa_state_stack(state_stack);
+      free(closures);
+      free(epsilons);
+      return NULL;
+    }
+
+    if (curr->symbol != '\0' && curr->next != NULL) {
+
+      int is_state_already_exists_in_closures = 0;
+
+      for (int i = 0; i < len; i++) {
+        if (closures[i]->id == curr->id) {
+          is_state_already_exists_in_closures = 1;
+        }
+      }
+
+      if (!is_state_already_exists_in_closures) {
+        if (append_to_closures(curr, &closures, &len, &max_closures) == -1) {
+          free_nfa_state_stack(state_stack);
+          free(closures);
+          free(epsilons);
+          return NULL;
+        }
+      }
+    }
+
+    for (int i = 0; i < curr_epsilon_transitions_len; i++) {
+      nfa_state *e = epsilons[i];
+
+      if (prev == NULL || e->id != prev->id) {
+        err = nfa_state_stack_push(state_stack, curr);
+        err = nfa_state_stack_push(state_stack, epsilons[i]);
+        if (err == -1) {
+          free_nfa_state_stack(state_stack);
+          free(closures);
+          free(epsilons);
+          return NULL;
+        }
+      }
+    }
+
+    if (!nfa_state_stack_is_empty(state_stack)) {
+      err = nfa_state_stack_pop(state_stack, &curr);
+      err = nfa_state_stack_pop(state_stack, &prev);
+      if (err == -1) {
+        free_nfa_state_stack(state_stack);
+        free(closures);
+        free(epsilons);
+        return NULL;
+      }
+    } else {
+      break;
+    }
+  }
+
+  *closures_len = len;
+  free_nfa_state_stack(state_stack);
+  free(epsilons);
+
+  return closures;
+}
+
 void free_nfa_state(nfa_state *s, int *visited) {
   if (visited[s->id] != 0) {
     return;
