@@ -53,6 +53,59 @@ int nfa_stack_pop(nfa_stack *s, nfa *state) {
   return 0;
 }
 
+nfa_state_stack *new_nfa_state_stack(int max) {
+  nfa_state_stack *s = (nfa_state_stack *)malloc(sizeof(nfa_state_stack));
+
+  if (s == NULL)
+    return NULL;
+
+  s->data = (nfa_state **)malloc(sizeof(nfa_state *) * max);
+  s->top = -1;
+  s->max = max;
+
+  if (s->data == NULL) {
+    if (s != NULL)
+      free(s);
+
+    return NULL;
+  }
+
+  return s;
+}
+
+void free_nfa_state_stack(nfa_state_stack *s) {
+  free(s->data);
+  free(s);
+}
+
+int nfa_state_stack_is_full(nfa_state_stack *s) { return s->top == s->max - 1; }
+int nfa_state_stack_is_empty(nfa_state_stack *s) { return s->top == -1; }
+
+nfa_state *nfa_state_stack_top(nfa_state_stack *s) { return s->data[s->top]; }
+
+int nfa_state_stack_push(nfa_state_stack *s, nfa_state *state) {
+  int new_top = ++s->top;
+
+  if (new_top > s->max - 1)
+    return -1;
+
+  s->data[new_top] = state;
+
+  return 0;
+}
+
+int nfa_state_stack_pop(nfa_state_stack *s, nfa_state **state) {
+  if (s->top < 0)
+    return -1;
+
+  if (state != NULL) {
+    (*state) = s->data[s->top];
+  }
+
+  s->top--;
+  return 0;
+}
+
 nfa_state *new_nfa_state(int id) {
   nfa_state *state = (nfa_state *)malloc(sizeof(nfa_state));
 
