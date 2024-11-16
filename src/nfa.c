@@ -708,25 +708,23 @@ int evaluate_string_in_nfa(nfa *n, const char *str, int str_len) {
   return 0;
 }
 
-void free_nfa_state(nfa_state *s, int *visited) {
-  if (visited[s->id] != 0) {
+void free_nfa_state(nfa_state *s) {
+  if (s == NULL || s->id == -1)
     return;
-  }
 
-  visited[s->id] = 1;
-
-  if (s->next != NULL && s->epsilon != NULL && s->epsilon->id != s->next->id) {
-    free(s->next);
-    free(s->epsilon);
-  } else if (s->next != NULL) {
-    free(s->next);
-  } else if (s->epsilon != NULL) {
-    free(s->epsilon);
-  } else {
-    return free(s);
-  }
+  nfa_state *next = s->next;
+  nfa_state *epsilon = s->epsilon;
 
   free(s);
+  s->id = -1;
+  s = NULL;
+
+  if (epsilon != NULL && next != NULL && next->id == epsilon->id) {
+    free_nfa_state(next);
+  } else {
+    free_nfa_state(epsilon);
+    free_nfa_state(next);
+  }
 }
 
 void free_nfa(nfa *n) {
@@ -735,7 +733,7 @@ void free_nfa(nfa *n) {
   for (int i = 0; i < n->number_of_states; i++)
     visited[i] = 0;
 
-  free_nfa_state(n->init, visited);
+  free_nfa_state(n->init);
   free(n);
   free(visited);
 }
