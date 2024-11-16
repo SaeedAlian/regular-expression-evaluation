@@ -106,6 +106,84 @@ int nfa_state_stack_pop(nfa_state_stack *s, nfa_state **state) {
   return 0;
 }
 
+nfa_state_queue *new_nfa_state_queue(int max) {
+  nfa_state_queue *q = (nfa_state_queue *)malloc(sizeof(nfa_state_queue));
+
+  if (q == NULL)
+    return NULL;
+
+  q->data = (nfa_state **)malloc(sizeof(nfa_state *) * max);
+  q->front = -1;
+  q->rear = -1;
+  q->max = max;
+
+  if (q->data == NULL) {
+    if (q != NULL)
+      free(q);
+
+    return NULL;
+  }
+
+  return q;
+}
+
+void free_nfa_state_queue(nfa_state_queue *q) {
+  free(q->data);
+  free(q);
+}
+
+int nfa_state_queue_is_full(nfa_state_queue *q) {
+  return (q->rear + 1) % q->max == q->front;
+}
+
+int nfa_state_queue_is_empty(nfa_state_queue *q) { return q->front == -1; }
+
+nfa_state *nfa_state_queue_front(nfa_state_queue *q) {
+  return q->data[q->front];
+}
+
+int nfa_state_queue_enqueue(nfa_state_queue *q, nfa_state *state) {
+  if ((q->rear + 1) % q->max == q->front)
+    return -1;
+
+  int new_rear = (q->rear + 1) % q->max;
+
+  if (q->front == -1)
+    q->front = (q->front + 1) % q->max;
+
+  q->data[new_rear] = state;
+  q->rear = new_rear;
+
+  return 0;
+}
+
+int nfa_state_queue_dequeue(nfa_state_queue *q, nfa_state **state) {
+  if (q->front == -1)
+    return -1;
+
+  if (state != NULL)
+    (*state) = q->data[q->front];
+
+  if (q->front == q->rear) {
+    q->front = q->rear = -1;
+  } else {
+    q->front = (q->front + 1) % q->max;
+  }
+
+  return 0;
+}
+
+int nfa_state_queue_length(nfa_state_queue *q) {
+  if (q->front == -1 && q->rear == -1)
+    return 0;
+
+  int len = q->rear - q->front + 1;
+
+  if (len < 0)
+    return -len;
+  return len;
+}
+
 nfa_state *new_nfa_state(int id) {
   nfa_state *state = (nfa_state *)malloc(sizeof(nfa_state));
 
