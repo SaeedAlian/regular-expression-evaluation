@@ -1,15 +1,17 @@
 #include "regex.h"
 
-int evaluate_string(const char *str, const char *regex) {
+int evaluate_string(const char *str, const char *regex, int show_log) {
   if (str == NULL) {
     printf("The provided string is empty!");
+    return -1;
   }
 
   if (regex == NULL) {
     printf("The provided regex is empty!");
+    return -1;
   }
 
-  if (SHOW_LOG)
+  if (show_log)
     printf("Evaluating '%s' with regular expression '%s'\n", str, regex);
 
   int standard_regex_len;
@@ -20,9 +22,10 @@ int evaluate_string(const char *str, const char *regex) {
 
   if (standard == NULL) {
     printf("There was an issue in the standardization process...");
+    return -1;
   }
 
-  if (SHOW_LOG)
+  if (show_log)
     printf("Standardized regular expression: %s\n", standard);
 
   char *postfix = regex_to_postfix(standard, standard_regex_len);
@@ -30,11 +33,12 @@ int evaluate_string(const char *str, const char *regex) {
   if (postfix == NULL) {
     free(standard);
     printf("There was an issue in postfix creation process...");
+    return -1;
   }
 
   int postfix_len = strlen(postfix);
 
-  if (SHOW_LOG)
+  if (show_log)
     printf("Postfix of regular expression: %s\n\n", postfix);
 
   nfa *n = new_nfa_from_regex(postfix, postfix_len);
@@ -43,29 +47,38 @@ int evaluate_string(const char *str, const char *regex) {
     free(postfix);
     free(standard);
     printf("There was an issue in nfa creation process...");
+    return -1;
   }
 
-  if (SHOW_LOG) {
+  if (show_log) {
     print_nfa(n);
     printf("\n");
   }
 
   int evaluated = evaluate_string_in_nfa(n, str, str_len);
 
-  printf("String '%s' is ", str);
+  if (show_log) {
+    printf("String '%s' is ", str);
 
-  if (evaluated == 1) {
-    printf("accepted");
-  } else {
-    printf("not accepted");
+    if (evaluated == 1) {
+      printf("accepted");
+    } else if (evaluated == 0) {
+      printf("not accepted");
+    } else {
+      printf("There was an issue in evaluation process...");
+      free_nfa(n);
+      free(postfix);
+      free(standard);
+      return -1;
+    }
+
+    printf(" with the given regular expression\n");
   }
-
-  printf(" with the given regular expression\n");
 
   free_nfa(n);
   free(postfix);
   free(standard);
-  return 0;
+  return evaluated;
 }
 
 char *standardize_regex(const char *regex, int len, int *new_len) {

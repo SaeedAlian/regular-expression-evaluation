@@ -1,8 +1,6 @@
 #ifndef REGEX_H_
 #define REGEX_H_
 
-#define SHOW_LOG 1
-
 #include "nfa.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +26,6 @@ char *regex_to_postfix(const char *regex, int len);
 
 char *standardize_regex(const char *regex, int len, int *new_len);
 
-int evaluate_string(const char *str, const char *regex);
+int evaluate_string(const char *str, const char *regex, int show_log);
 
 #endif
