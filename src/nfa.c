@@ -346,6 +346,11 @@ void print_nfa(nfa *nfa) {
   printf("-----------------------------------------\n");
   int *visited = (int *)malloc(sizeof(int) * nfa->number_of_states);
 
+  if (visited == NULL) {
+    printf("ERROR ON PRINTING NFA\n");
+    return;
+  }
+
   for (int i = 0; i < nfa->number_of_states; i++)
     visited[i] = 0;
 
