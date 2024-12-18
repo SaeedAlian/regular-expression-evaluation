@@ -36,7 +36,7 @@ typedef struct nfa_state_queue {
   nfa_state **data;
 } nfa_state_queue;
 
-void free_nfa_state(nfa_state *s);
+void free_nfa_state(nfa_state *s, int *visited, int visited_len);
 void free_nfa(nfa *n);
 void free_nfa_stack(nfa_stack *s);
 void free_nfa_state_stack(nfa_state_stack *s);

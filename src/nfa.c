@@ -82,7 +82,7 @@ int evaluate_string_in_nfa(nfa *n, const char *str, int str_len) {
     free(closures);
 
     if (nfa_state_queue_is_empty(q))
-      curr = NULL;
+      break;
 
     if (nfa_state_queue_dequeue(q, &curr) == -1) {
       free_nfa_state_queue(q);
@@ -571,25 +571,36 @@ nfa_state **get_epsilon_transitions(nfa_state *s, int *transitions_len) {
 }
 
 void free_nfa(nfa *n) {
-  free_nfa_state(n->init);
+  int *visited = (int *)malloc(sizeof(int) * n->number_of_states);
+  for (int i = 0; i < n->number_of_states; i++)
+    visited[i] = 0;
+
+  free_nfa_state(n->init, visited, n->number_of_states);
+  free(visited);
   free(n);
 }
 
-void free_nfa_state(nfa_state *s) {
-  if (s == NULL || s->id == -1)
+void free_nfa_state(nfa_state *s, int *visited, int visited_len) {
+  if (s == NULL || s->id >= visited_len || visited[s->id] == 1)
     return;
 
-  s->id = -1;
+  visited[s->id] = 1;
 
-  if (s->epsilon != NULL && s->next != NULL && s->epsilon->id != s->next->id) {
-    free_nfa_state(s->epsilon);
-  } else if (s->epsilon != NULL && s->epsilon->id != -1) {
-    free_nfa_state(s->epsilon);
-  } else if (s->next != NULL && s->next->id != -1) {
-    free_nfa_state(s->next);
+  if (s->next != NULL && s->epsilon != NULL) {
+    if (s->next->id == s->epsilon->id) {
+      free_nfa_state(s->next, visited, visited_len);
+    } else {
+      free_nfa_state(s->next, visited, visited_len);
+      free_nfa_state(s->epsilon, visited, visited_len);
+    }
+  } else if (s->next != NULL) {
+    free_nfa_state(s->next, visited, visited_len);
+  } else {
+    free_nfa_state(s->epsilon, visited, visited_len);
   }
 
   free(s);
+  s = NULL;
 }
 
 void print_nfa(nfa *nfa) {
